@@ -1,4 +1,8 @@
 ﻿var µ = (function() {
+	function micro(selector) {
+		return init(selector);
+	};
+
 	var NULL_TYPE = 'Null',
     	UNDEFINED_TYPE = 'undefined',
     	BOOLEAN_TYPE = 'Boolean',
@@ -14,17 +18,19 @@
 		els,
 		_toString = Object.prototype.toString;
 
+
+
 	function extend(destination, source) {
 		for (var property in source)
 			destination[property] = source[property];
-		return destination;
+		//return destination;
 	}
 
-	function µObject (argument) {
+	/*function µObject (argument) {
 		this.obj = argument;
 
-	}
-	(function() {
+	}*/
+	micro.µObject = (function() {
 		var hasNativeIsArray = (typeof Array.isArray == 'function')
     		&& Array.isArray([]) && !Array.isArray({});
 
@@ -49,74 +55,108 @@
 		function toString () {
 	  		return this.obj.toString();
 	  	}
-		extend(µObject.prototype, {
+	  	function clone(object) {
+	    	return extend({ }, object);
+		}
+		return {
 			isNumber: isNumber,
 			isArray: isArray,
 			valueOf: valueOf,
-			toString: toString
-		});
+			toString: toString,
+			clone: clone
+		};
 	})();
 	
 
-	
-
-	µObject.µsuper = function µsuper(klass) {
-		for(var prop in this.prototype) {
-			klass.prototype[prop] = this.prototype[prop];
-		}
+	var µCommon = {
+		valueOf: function valueOf() {
+			return this.obj.valueOf();
+		},
+		toString: function toString () {
+	  		return this.obj.toString();
+	  	}
 	}
 	
-	function µArray (argument) {
+	micro.µArray = function µArray (argument) {
 		this.obj = argument;
 	}
+	extend(micro.µArray.prototype, µCommon);
 
 	//extend(µArray.prototype, Array.prototype);
 	//extend(Object.prototype, µObject.prototype);
 	//µObject.µsuper(µArray);
 
-	function µElement (argument) {
+
+
+	micro.µElement = function µElement (argument) {
 		this.obj = argument;
 		this.tag = this.obj.tagName;
+		extend(micro.µElement.prototype, argument);
+		extend(micro.µElement.prototype, µCommon);
 	}
-	µElement.prototype = new µObject;
 
-	function µNumber (argument) {
-		this.obj = argument;
-	}
-	(function() {
-		function next () {
-			return this + 1;
+	
+	micro.µNumber = (function() {
+		function µNumber (argument) {
+			this.obj = argument;
+			/*this.valueOf = function valueOf () {
+		  		return this.obj.valueOf();
+		  	}*/
 		}
+		µNumber.prototype = new Number;
+		extend(µNumber.prototype, µCommon);
 		extend(µNumber.prototype, {
-			next: next
+			next: function next() {
+				return µ(this + 1);
+			},
+			times: function times (iterator, context) {
+				for (var i = 0; i < this; i++) {
+					iterator.call(context, i, this);
+				};
+			},
+			abs: function abs(){
+				return µ(Math.abs(this));
+			},
+			ceil: function ceil(){
+				return µ(Math.ceil(this));
+			},
+			floor: function floor(){
+				return µ(Math.floor(this));
+			},
+			round: function round(){
+				return µ(Math.round(this));
+			}
 		})
+		return µNumber;
+	})();
+	
+	
+	(function() {
+		
 		//extend(µNumber.prototype, new µObject);
 	})();
-	µNumber.constructor = µObject;
 
-	function micro() {
+	function init (selector) {
 		var args = arguments;
 
-		switch(typeof args[0]) {
+		switch(typeof selector) {
 			case STRING_TYPE:
 				els = Sizzle(args[0]);
-				els = els.length === 0 ? 
+				return els.length === 0 ? 
 					null : 
 					els.length === 1 ? 
-						new µElement(els[0]) : 
-						new µArray(els);
-				break;
+						new micro.µElement(els[0]) : 
+						new micro.µArray(els);
 			case NUMBER_TYPE:
-				els = new µNumber(args[0]);
-				break;
+				return new micro.µNumber(args[0]);
 			default:
-				els = new µObject(args[0]);
-				break;
+				return els;
 		}
-		return els;
-	};
+	}
+
+	
 
 	//console.log(arguments);
-	micro.element = els;
+	//micro.element = els;
 	return micro;
 })();
