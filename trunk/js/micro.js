@@ -50,7 +50,7 @@
     		&& Array.isArray([]) && !Array.isArray({});
 
 		function isArray(obj) {
-	   		return _toString.call(obj) === ARRAY_CLASS;
+	   		return obj.toString() === ARRAY_CLASS;
 	  	}
 
 	  	function isNumber(obj) {
@@ -73,6 +73,17 @@
 	  		this.isArray = Array.isArray;
 	  	}*/
 
+	  	function inspect (object) {
+	  		try {
+			if (isUndefined(object)) return 'undefined';
+			if (object === null) return 'null';
+				return object.inspect ? object.inspect() : String(object);
+			} catch (e) {
+				if (e instanceof RangeError) return '...';
+				throw e;
+			}
+	  	}
+
 	  	function clone(object) {
 	    	return f.etendre({ }, object);
 		}
@@ -80,20 +91,24 @@
 			isNumber: isNumber,
 			isArray: isArray,
 			isString: isString,
-			isHTMLElement: isHTMLElement, 
+			isHTMLElement: isHTMLElement,
 			valueOf: valueOf,
 			toString: toString,
 			clone: clone,
+			inspect: inspect,
 			isUndefined: isUndefined
 		};
 	})();
-	
+
 
 	var µCommon = {
 		valueOf: function valueOf() {
 			return this.obj.valueOf();
 		},
 		toString: function toString () {
+	  		return this.obj.toString();
+	  	},
+	  	inspect: function inspect () {
 	  		return this.obj.toString();
 	  	}
 	}
@@ -114,25 +129,182 @@
 
 			function invoke (methodName, args) {
 				var args = Array.prototype.slice.call(arguments, 1);
-				return this.collecter(function(value) {
+				return this.collect(function(value) {
 				   	return value[methodName].apply(value, args);
 				});
 			}
 
 			function collect (iterator, context) {
 				iterator = iterator || micro.__;
-				var results = [];
-				this.chaque(function(item, index) {
-					results.push(iterator.call(context, item));
+				var __results = [];
+				this.each(function(item, index) {
+					__results.push(iterator.call(context, item));
 				})
-				return µ(results);
+				return µ(__results);
+			}
+			function all (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result = true;
+				this.each(function(item, index) {
+					if(!iterator.call(context, item.valueOf())) __result = false;
+				});
+				return __result;
+			}
+			function any (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result = false;
+				this.each(function(item) {
+					if(iterator.call(context, item.valueOf())) __result = true;
+				});
+				return __result;
+			}
+			function detect (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result = undef, find = false;
+				this.each(function(item) {
+					if(iterator.call(context, item.valueOf()) && !find) {
+						__result = item;
+						find = true;
+					}
+				});
+				return __result;
 			}
 
+			// TODO : eachSlice
+
+			function findAll (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result = [];
+				this.each(function(item) {
+					if(iterator.call(context, item.valueOf())) __result.push(item);
+				});
+				return __result;
+			}
+
+			function grep (filter, iterator, context) {
+				iterator = iterator || micro.__;
+				var __result = [];
+				this.each(function(item) {
+					if(filter.test(item)) __result.push(iterator.call(context, item));
+				});
+				return __result;
+			}
+
+			function include (object) {
+				return this.any(function(item) {return item == object});
+			}
+
+			// TODO : inGroupsOf
+
+			function inject (accumulator, iterator, context) {
+				this.each(function(item, index) {
+					accumulator = iterator.call(context, accumulator, item, index);
+				});
+				return accumulator;
+			}
+
+			function inspect (argument) {
+				return '#<Enumerable:' + this.toArray().inspect() + '>';
+			}
+
+			function toArray() {
+				return this.collect();
+			}
+
+			// Enumerable#max([iterator = µ.__[, context]]) → maxValue
+			function max (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result;
+				this.each(function(value, index) {
+					value = iterator.call(context, value, index);
+					if(__result == null || value >= __result)
+						__result = value;
+				});
+				return __result;
+			}
+
+			// Enumerable#min([iterator = Prototype.K[, context]]) → minValue
+			function min (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result;
+				this.each(function(value, index) {
+					value = iterator.call(context, value, index);
+					if(__result == null || value < __result)
+						__result = value;
+				});
+				return __result;
+			}
+
+			// Enumerable#partition([iterator = Prototype.K[, context]]) → [TrueArray, FalseArray]
+			function partition (iterator, context) {
+				iterator = iterator || micro.__;
+				var trueArray = [], falseArray = [];
+				this.each(function(item, index) {
+					(iterator.call(context, item, index)) ? trueArray.push(item) : falseArray.push(item);
+				});
+				return [trueArray, falseArray];
+			}
+
+			// Enumerable#pluck(property) → Array
+			function pluck (property) {
+				var __result = [];
+				this.each(function(item) {
+					__result.push(item[property]);
+				})
+				return __result;
+			}
+
+			// Enumerable#reject(iterator[, context]) → Array
+			function reject (iterator, context) {
+				iterator = iterator || micro.__;
+				var __result = [];
+				this.each(function(item) {
+					if(!iterator.call(context, item.valueOf())) __result.push(item);
+				});
+				return __result;
+			}
+
+			// Enumerable#size() → Number
+			function size () {
+				return this.toArray().length;
+			}
+
+			// Enumerable#sortBy(iterator[, context]) → Array
+			function sortBy(iterator, context) {
+				return µ(this.map(function(value, index) {
+					return {
+						value: value,
+						criteria: iterator.call(context, value, index)
+					};
+				}).sort(function(left, right) {
+					var a = left.criteria, b = right.criteria;
+					return a < b ? -1 : a > b ? 1 : 0;
+				})).pluck('value');
+			}
+
+			// TODO : Enumerable#zip(sequence...[, iterator = micro.__]) → Array
+
 			return {
-				chaque: each,
-				collecter: collect,
-				invoquer: invoke
-			}			
+				all: all,
+				any: any,
+				detect: detect,
+				findAll: findAll,
+				grep: grep,
+				include: include,
+				inject: inject,
+				inspect: inspect,
+				toArray: toArray,
+				collect: collect,
+				invoke: invoke,
+				min: min,
+				max: max,
+				partition: partition,
+				pluck: pluck,
+				reject: reject,
+				size: size,
+				sortBy: sortBy,
+				each: each
+			}
 		})()
 	}
 
@@ -163,7 +335,92 @@
 				}}
 			}
 		})());
-		return µArray;	
+
+		if (!µArray.prototype._reverse)
+			µArray.prototype._reverse = µArray.prototype.reverse;
+
+		f.etendre(µArray.prototype, {
+			toString: function toString () {
+				return '[object Array]';
+			},
+
+			// Array#inspect() → String
+			inspect: function inspect() {
+				return '[' + this.map(µ.Object.inspect).join(', ') + ']';
+			},
+
+			// Array#clear() → Array
+			clear: function clear () {
+				for (var i = 0, len = this.length; i < len; i++) {
+					this.shift();
+				};
+    			return this;
+			},
+
+			// Array#compact() → Array
+			compact: function compact() {
+				var __result = [];
+				this._each(function(item, index) {
+					if(item != null || typeof(item) !== UNDEFINED_TYPE) __result.push(item);
+				})
+				return __result;
+			},
+
+			// Array#first() → ?
+			first: function first () {
+				return this[0];
+			},
+
+			// Array#flatten() → Array
+			flatten: function flatten () {
+				return this.inject([], function(array, value) {
+					if (µ.Object.isArray(value))
+						return array.concat(value.flatten());
+					array.push(value);
+					return array;
+				});
+			},
+
+			// Array#indexOf(item[, offset = 0]) → Number
+			indexOf: function indexOf (item, offset) {
+				for (var i = offset || 0, len = this.length; i < len; i++) {
+					if (typeof(item.obj) !== UNDEFINED_TYPE) {
+						if(this[i].obj === item.obj) return i;
+					};
+					if(this[i].obj === item) return i;
+				};
+				return -1;
+			},
+
+			// Array#intersect(array) → Array
+			intersect: function intersect (array) {
+				return this.uniq().findAll(function(item) {
+					return array.detect(function(value) { return item === value });
+				});
+			},
+
+			// Array#last() → ?
+			last: function last () {
+				return this[this.length - 1];
+			},
+
+			// Array#lastIndexOf(item[, offset = 0]) → Number
+			lastIndexOf: function lastIndexOf (item, offset) {
+				for (var i = offset || (this.length - 1); i > 0; i--) {
+					if (typeof(item.obj) !== UNDEFINED_TYPE) {
+						if(this[i].obj === item.obj) return i;
+					};
+					if(this[i].obj === item) return i;
+				};
+				return -1;
+			},
+
+			// Array#reverse([inline = true]) → Array
+			reverse: function reverse (inline) {
+				return (inline === false ? this.toArray() : this)._reverse();
+			}
+		})
+		return µArray;
 	})();
 
 	/**
@@ -231,6 +488,9 @@
 			},
 			times: function times(count) {
 				return count < 1 ? '' : new Array(count + 1).join(this);
+			},
+			equals: function equals (str) {
+				return 	this.obj === ((str.obj) ? str.obj : str);
 			}
 		});
 		f.etendre(µString.prototype, µCommon);
@@ -242,7 +502,7 @@
 	**/
 	micro.Classes.Element = (function() {
 		function µElement (argument) {
-			if (argument) { 
+			if (argument) {
 				this.obj = argument;
 				this.tag = this.obj.tagName;
 				this.__proto__ = argument;
@@ -251,7 +511,7 @@
 		f.etendre(µElement.prototype, µCommon);
 		return µElement;
 	})();
-		
+
 	/**
 	* Classe µDate
 	**/
@@ -276,7 +536,7 @@
 		f.etendre(µDate.prototype, µCommon);
 		return µDate;
 	})();
-	
+
 	function initElement (selector) {
 		if(!selector) return this;
 
@@ -300,15 +560,18 @@
 						return new micro.Classes.Array(els);
 					}
 				} else {
-					return null;	
-				};	
+					return null;
+				};
 			};
 		};
 	}
 
 	function init (selector) {
 		var args = arguments,
-			els;		
+			els;
+
+			if(selector === null || typeof(selector) === UNDEFINED_TYPE) return selector;
+
 		if (micro.Object.isNumber(selector)) {
 			return new micro.Classes.Number(selector);
 		};
@@ -318,15 +581,27 @@
 		if (micro.Object.isString(selector)) {
 			return new micro.Classes.String(selector);
 		};
-		return null;
+		if (typeof(selector.length) !== UNDEFINED_TYPE) {
+			return new micro.Classes.Array(selector);
+		};
+		return selector;
 	}
 
 	micro.toString = function toString () {
 		return "Micro Framework v1.0 - T@nu$ © 2011-2012"
 	};
 
+	micro.Range = function Range (indexDepart, indexFin) {
+		var range = [];
+		for (var i = indexDepart; i <= indexFin; i++) {
+			range.push(i);
+		};
+		return µ(range);
+	}
+
 	micro.f = f;
 	micro.__ = micro.Global.__;
 	global.µ = micro;
 	global.µ$ = microElement;
+	global.µR = micro.Range;
 })(window);
