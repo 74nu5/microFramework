@@ -50,7 +50,8 @@
     		&& Array.isArray([]) && !Array.isArray({});
 
 		function isArray(obj) {
-	   		return obj.toString() === ARRAY_CLASS;
+	   		return obj instanceof Array;
+	   		//return _toString.call(obj) === ARRAY_CLASS;
 	  	}
 
 	  	function isNumber(obj) {
@@ -198,7 +199,7 @@
 
 			function inject (accumulator, iterator, context) {
 				this.each(function(item, index) {
-					accumulator = iterator.call(context, accumulator, item, index);
+					accumulator = iterator.call(context, µ(accumulator), item, index);
 				});
 				return accumulator;
 			}
@@ -316,11 +317,12 @@
 	micro.Classes.Array = (function() {
 		function µArray (argument) {
 			this.obj = argument || [];
+			//this.length = this.__proto__.length = 0;
 			var i;
 			for (i = 0; i < this.obj.length; i++) {
-				this[i] = µ(this.obj[i]);
+				this.push(µ(this.obj[i]));
 			};
-			this.length = this.__proto__.length = i;
+			//this.length = this.__proto__.length = this.obj.length;
 		}
 		µArray.prototype =  [];
 		f.etendre(µArray.prototype, micro.Interfaces.Enumerable);
@@ -361,7 +363,7 @@
 			compact: function compact() {
 				var __result = [];
 				this._each(function(item, index) {
-					if(item != null || typeof(item) !== UNDEFINED_TYPE) __result.push(item);
+					if(item != null && typeof(item) !== UNDEFINED_TYPE) __result.push(item);
 				})
 				return __result;
 			},
@@ -418,6 +420,31 @@
 			// Array#reverse([inline = true]) → Array
 			reverse: function reverse (inline) {
 				return (inline === false ? this.toArray() : this)._reverse();
+			},
+
+			// Array#uniq([sorted = false]) → Array
+			uniq: function uniq (sorted) {
+				return this.inject([], function(array, value, index) {
+					if (0 == index || (sorted ? array.last() != value : !array.include(value)))
+						array.push(value);
+					return array;
+				});
+			},
+
+			// Array#concat(arry1, array2, ... , arrayN) → Array
+			concat: function concat () {
+				var args = arguments;
+				for (var i = 0; i < args.length; i++) {
+					var tab = args[i];
+					if (µ.Object.isArray(tab)) {
+						var len = tab.length;
+						for (var j = 0; j < len; j++) {
+							var el = tab[j];
+							this.push(el);
+						};
+					};
+				};
+				return this;
 			}
 		})
 		return µArray;
@@ -576,13 +603,15 @@
 			return new micro.Classes.Number(selector);
 		};
 		if (micro.Object.isArray(selector)) {
-			return new micro.Classes.Array(selector);
+			if (!(selector instanceof micro.Classes.Array))
+				return new micro.Classes.Array(selector);
 		};
 		if (micro.Object.isString(selector)) {
 			return new micro.Classes.String(selector);
 		};
 		if (typeof(selector.length) !== UNDEFINED_TYPE) {
-			return new micro.Classes.Array(selector);
+			if (!(selector instanceof micro.Classes.Array))
+				return new micro.Classes.Array(selector);
 		};
 		return selector;
 	}
