@@ -225,4 +225,12 @@ console.log(
 	console.log(nums);
 }, true);
 
-
+// Array#uniq([sorted = false]) → Array
+µ.testFunction('Array#uniq([sorted = false]) → Array', function() {
+	console.log(
+		µ([1, 3, 2, 1]).uniq(),
+		// -> [1, 2, 3]
+	 	µ(['A', 'a']).uniq()
+		// -> ['A', 'a'] (because String comparison is case-sensitive)
+	);
+});
