@@ -12,6 +12,7 @@
     	NUMBER_TYPE = 'number',
     	STRING_TYPE = 'string',
     	OBJECT_TYPE = 'object',
+    	FUNCTION_TYPE = 'function',
     	FUNCTION_CLASS = '[object Function]',
     	BOOLEAN_CLASS = '[object Boolean]',
      	NUMBER_CLASS = '[object Number]',
@@ -25,7 +26,16 @@
 	var f = {
 		etendre: function etendre(destination, source) {
 			for (var property in source)
-				destination[property] = source[property];
+				//if (typeof destination[property] === UNDEFINED_TYPE) {
+					destination[property] = source[property];
+				//};
+		},
+		bind: function bind (context) {
+			var args = µ(arguments).slice(2);
+			var that = this;
+			return function() {
+				that.call(context, args);
+			};
 		}
 	}
 
@@ -49,25 +59,34 @@
 		var hasNativeIsArray = (typeof Array.isArray == 'function')
     		&& Array.isArray([]) && !Array.isArray({});
 
+    	function __getClass(object) {
+			return Object.prototype.toString.call(object)
+				.match(/^\[object\s(.*)\]$/)[1];
+		};
+
 		function isArray(obj) {
-	   		return obj instanceof Array;
-	   		//return _toString.call(obj) === ARRAY_CLASS;
+	   		return _toString.call(obj) === ARRAY_CLASS;
 	  	}
 
 	  	function isNumber(obj) {
-	   		return typeof obj === NUMBER_TYPE;
+	   		return _toString.call(obj) === NUMBER_CLASS
 	  	}
 
 	  	function isString (obj) {
-	  		return typeof obj === STRING_TYPE;
+	  		return _toString.call(obj) === STRING_CLASS;
 	  	}
 
 	  	function isHTMLElement (obj) {
-	  		return obj instanceof HTMLElement
+	  		return !!(object && object.nodeType == 1);
+	  		// return obj instanceof HTMLElement
 	  	}
 
 	  	function isUndefined(object) {
 			return typeof object === "undefined";
+		}
+
+		function isFunction (obj) {
+			return _toString.call(obj) === FUNCTION_CLASS;
 		}
 
 	  	/*if(hasNativeIsArray) {
@@ -97,6 +116,7 @@
 			toString: toString,
 			clone: clone,
 			inspect: inspect,
+			isFunction: isFunction,
 			isUndefined: isUndefined
 		};
 	})();
@@ -433,7 +453,14 @@
 
 			// Array#concat(arry1, array2, ... , arrayN) → Array
 			concat: function concat () {
-				var args = arguments;
+				micro(arguments).each(function(arg, index) {
+					if (µ.Object.isArray(arg)) {
+						arg.each(function(tabEl, index) {
+							this.push(tabEl);
+						});
+					}
+				});
+				/*var args = arguments;
 				for (var i = 0; i < args.length; i++) {
 					var tab = args[i];
 					if (µ.Object.isArray(tab)) {
@@ -443,7 +470,7 @@
 							this.push(el);
 						};
 					};
-				};
+				};*/
 				return this;
 			}
 		})
