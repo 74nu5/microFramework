@@ -5,7 +5,7 @@
 
 	function microElement (selector) {
 		return initElement(selector);
-	}
+	};
 	var NULL_TYPE = 'Null',
     	UNDEFINED_TYPE = 'undefined',
     	BOOLEAN_TYPE = 'Boolean',
@@ -37,7 +37,7 @@
 				that.call(context, args);
 			};
 		}
-	}
+	};
 
 	micro.Global = {
 		Navigateur : (function(){
@@ -107,6 +107,12 @@
 	  	function clone(object) {
 	    	return f.etendre({ }, object);
 		}
+
+		function is(type, obj) {
+			var clas = _toString.call(obj).slice(8, -1);
+			return obj !== undefined && obj !== null && clas === type;
+		}
+
 		return {
 			isNumber: isNumber,
 			isArray: isArray,
@@ -117,7 +123,8 @@
 			clone: clone,
 			inspect: inspect,
 			isFunction: isFunction,
-			isUndefined: isUndefined
+			isUndefined: isUndefined,
+			is: is
 		};
 	})();
 
@@ -559,10 +566,27 @@
 			if (argument) {
 				this.obj = argument;
 				this.tag = this.obj.tagName;
-				this.__proto__ = argument;
+				this.__proto__ .__proto__ = argument;
 			};
 		}
+		// A REFAIRE CECI EST UNE INSTANCE DE CLASSE ON NE PEUT DONC PAS EN HERITER ! ! ! ! ! ! ! ! ! !
+		//µElement.prototype = document.cre
+		//µElement.prototype
 		f.etendre(µElement.prototype, µCommon);
+		f.etendre(µElement.prototype, {
+			addClassName: function addClassName (className) {
+				if (!this.hasClassName(className)) {
+					this.className += (this.className ? ' ' : '') + className;
+				}
+				return this;
+			},
+
+			hasClassName: function hasClassName (className) {
+				var elementClassName = this.className;
+    			return (elementClassName.length > 0 && (elementClassName == className ||
+    				new RegExp("(^|\\s)" + className + "(\\s|$)").test(elementClassName)));
+			}
+		});
 		return µElement;
 	})();
 
@@ -608,11 +632,11 @@
 			} else{
 				els = Sizzle(selector);
 				if(els.length > 0) {
-					if (els.length === 1) {
+					/*if (els.length === 1) {
 						return new micro.Classes.Element(els[0]);
-					} else {
+					} else {*/
 						return new micro.Classes.Array(els);
-					}
+					/*}*/
 				} else {
 					return null;
 				};
